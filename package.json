@@ -1,0 +1,10 @@
+{
+  "name": "stellar-defenders",
+  "scripts": {
+    "build:pages": "node scripts/prepare-pages.mjs",
+    "deploy:pages": "npm run build:pages && npx --yes wrangler pages deploy dist --project-name stellar-defenders --branch main"
+  },
+  "dependencies": {
+    "playwright": "^1.58.2"
+  }
+}
