@@ -42,7 +42,7 @@ export const BASE = {
 
 // 子弹（加速加大）
 export const BULLET = {
-    SPEED: 700,
+    SPEED: 500,
     WIDTH: 4,
     HEIGHT: 14,
     COLOR: '#00ffff'

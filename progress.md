@@ -64,3 +64,12 @@ Original prompt: 可以帮我生成新的图片或图标，替换现有的敌人
   - Laser: 1.8 / 0.9 / 0.6s for levels 1 / 2 / 3
   - Arc: 12 / 6 / 4s for levels 1 / 2 / 3
 - Rebuilt dist/ and deployed the slower-fire-rate version to Cloudflare Pages at https://97c62a9f.stellar-defenders.pages.dev.
+- Restored the baseline primary bullet travel speed to a plainer default after follow-up feedback:
+  - BULLET.SPEED changed from 700 to 500 in src/config/constants.js.
+  - WEAPON_CONFIG.primary.bulletSpeed changed from 700 to 500 in src/config/weapons.js.
+  - This was treated as a "restore baseline bullet speed" pass because git history no longer had an older pre-buffed value to recover directly.
+- Verified the bullet-speed config with module checks:
+  - Global bullet speed: 500
+  - Primary weapon bullet speed: 500
+- Rebuilt dist/ for deployment after the bullet-speed adjustment.
+- Deployed the restored-bullet-speed build to Cloudflare Pages at https://d3a245f4.stellar-defenders.pages.dev.

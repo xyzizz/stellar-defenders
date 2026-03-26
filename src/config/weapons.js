@@ -4,7 +4,7 @@ export const WEAPON_CONFIG = {
         name: '等离子枪',
         damage: 15,          // 提升基础伤害
         fireRate: 0.18,
-        bulletSpeed: 700,
+        bulletSpeed: 500,
         bulletWidth: 4,
         bulletHeight: 14,
         bulletColor: '#00ffff',
