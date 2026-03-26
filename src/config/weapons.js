@@ -23,7 +23,7 @@ export const SPECIAL_WEAPONS = {
     missile: {
         name: '追踪导弹',
         damage: 50,
-        fireRate: 1.8,
+        fireRate: 4.8,
         bulletSpeed: 350,
         bulletWidth: 8,
         bulletHeight: 16,
@@ -41,13 +41,13 @@ export const SPECIAL_WEAPONS = {
         width: 8,
         color: '#ff00ff',
         duration: 0.15,
-        cooldown: 0.6,
+        cooldown: 1.8,
         pierce: 999
     },
     arc: {
         name: '电弧发生器',
-        damage: 12,
-        fireRate: 1.0,
+        damage: 4,
+        fireRate: 12.0,
         chainCount: 4,
         chainRange: 120,
         color: '#88ffff'

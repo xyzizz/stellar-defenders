@@ -1,0 +1,66 @@
+Original prompt: 可以帮我生成新的图片或图标，替换现有的敌人，嵌入到游戏中吗
+
+2026-03-26
+- User selected pixel mech style for enemy replacements.
+- Plan: create project-local enemy sprite assets, wire them into enemy rendering, then verify in browser.
+- Added five enemy sprite assets under assets/enemies/ as pixel mech SVGs for drone, rusher, tank, bomber, and boss.
+- Updated src/entities/enemy.js to load sprite assets with drawImage(), keeping geometric fallbacks if an image is not ready yet.
+- Verified in browser: no console errors, enemy sprite assets all returned 200 OK, and drone sprites rendered in gameplay.
+- Added shared sprite helpers in src/utils/sprites.js.
+- Added pixel mech assets for the player, boss bullet, and all chest tiers.
+- Updated player, boss bullet, and chest rendering to use sprite assets with fallback geometry still in place.
+- Rebuilt dist/ and generated a fresh gameplay capture at output/web-game/pixel-unify/shot-0.png.
+- Fixed off-screen enemy targeting in src/core/game.js so laser, arc, missile targeting, and explosion splash ignore enemies that have spawned above the top edge but are not yet visible.
+- Rebuilt dist/ and ran a smoke capture after the targeting fix at output/web-game/targeting-fix/shot-0.png.
+- Applied the approved difficulty pass:
+  - Experience orbs now fall faster than chest rewards.
+  - Chest exposure now requires the full outer shell to be broken.
+  - Brick HP, chest HP, wave pressure, per-wave enemy HP scaling, boss HP, and late-boss fire rate were all increased.
+  - Passive level-up damage growth was reduced from +5% to +4% per level.
+- Rebuilt dist/ after the difficulty tuning.
+- Ran deterministic module checks:
+  - Pickup check confirmed exp orbs move 230 px/sec while reward pickups still move 150 px/sec.
+  - Wall check confirmed breaking only the bottom-side bricks does not expose the chest; breaking the full shell does.
+- Added test-actions/difficulty_smoke.json for local smoke testing.
+- Deployed the tuned build to Cloudflare Pages at https://2f2d8dee.stellar-defenders.pages.dev.
+- Cloudflare Pages still shows custom domain xyzizz.xyz as pending because the DNS CNAME record is not set yet.
+- Investigated reports of enemies dying without obvious hits. Result: the main issue was unclear feedback for chained arc hits and explosive splash kills, plus ordinary bullet collisions still did not filter out enemies that had not yet entered the visible playfield.
+- Updated src/core/game.js to add a transient combat-effects layer:
+  - Arc attacks now draw visible chain lines.
+  - Explosions now draw an expanding splash ring.
+  - Explosion splash victims now get damage numbers and hit particles.
+  - Ordinary bullet collision now also ignores enemies above the visible top edge.
+- Verified the hit-feedback fix with deterministic module checks using a stubbed canvas/game instance:
+  - Off-screen bullet collision is ignored.
+  - Arc fire creates both a combat effect and a damage number.
+  - Explosion splash creates both a combat effect and a damage number for affected enemies.
+- Reduced arc trigger frequency significantly in src/config/weapons.js:
+  - Arc base fireRate changed from 1.0 to 2.4.
+  - Effective intervals are now about 2.4s / 1.2s / 0.8s for arc levels 1 / 2 / 3.
+- Rebuilt dist/ and deployed the slower-arc version to Cloudflare Pages at https://98881d25.stellar-defenders.pages.dev.
+- Reduced arc even further after follow-up feedback:
+  - Arc base fireRate changed from 2.4 to 4.8.
+  - Arc base damage changed from 12 to 4.
+  - Effective intervals are now about 4.8s / 2.4s / 1.6s for arc levels 1 / 2 / 3.
+- Rebuilt dist/ and deployed the extra-nerfed arc version to Cloudflare Pages at https://eb577d2c.stellar-defenders.pages.dev.
+- Added time-scaled enemy HP bar thickness:
+  - Regular enemy HP bars now grow from about 2.5px to 6px over 180 seconds.
+  - Boss HP bars now grow from 6px to 12px over the same timeline.
+  - Total elapsed combat time is now passed into enemy rendering from src/core/game.js.
+- Verified the thickness scaling with a stubbed render check:
+  - Enemy bar heights: 2.5 -> 6
+  - Boss bar heights: 6 -> 12
+- Rebuilt dist/ and deployed the thicker-over-time HP bar version to Cloudflare Pages at https://25848c97.stellar-defenders.pages.dev.
+- Heavily slowed the player weapon cadence after follow-up balance feedback:
+  - Primary auto-fire interval changed from 0.18 to 0.42.
+  - Missile base interval changed from 1.8 to 4.8.
+  - Laser cooldown changed from 0.6 to 1.8.
+  - Arc base interval changed from 4.8 to 12.0.
+  - Common fire-rate upgrade now gives about +5% instead of +12%.
+  - Overcharge now only slightly boosts fire rate instead of sharply accelerating it.
+- Verified the new cadence values:
+  - Primary: 0.42s
+  - Missile: 4.8 / 2.4 / 1.6s for levels 1 / 2 / 3
+  - Laser: 1.8 / 0.9 / 0.6s for levels 1 / 2 / 3
+  - Arc: 12 / 6 / 4s for levels 1 / 2 / 3
+- Rebuilt dist/ and deployed the slower-fire-rate version to Cloudflare Pages at https://97c62a9f.stellar-defenders.pages.dev.

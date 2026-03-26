@@ -2,6 +2,47 @@
 import { CANVAS_WIDTH, CANVAS_HEIGHT, PLAYER, COLORS } from '../config/constants.js';
 import { WEAPON_CONFIG } from '../config/weapons.js';
 import { clamp } from '../utils/helpers.js';
+import { loadSprite, drawPixelSprite } from '../utils/sprites.js';
+
+const PLAYER_SPRITE = loadSprite(
+    new URL('../../assets/player/player-pixel-mech.svg', import.meta.url).href
+);
+
+function renderFallbackPlayer(ctx, player, isFlashing) {
+    if (isFlashing) {
+        ctx.globalAlpha = 0.4;
+    }
+
+    const cx = player.getCenterX();
+    const cy = player.getCenterY();
+
+    ctx.beginPath();
+    ctx.moveTo(cx, player.y);
+    ctx.lineTo(cx + player.width / 2, player.y + player.height * 0.8);
+    ctx.lineTo(cx + player.width * 0.15, player.y + player.height * 0.6);
+    ctx.lineTo(cx, player.y + player.height);
+    ctx.lineTo(cx - player.width * 0.15, player.y + player.height * 0.6);
+    ctx.lineTo(cx - player.width / 2, player.y + player.height * 0.8);
+    ctx.closePath();
+
+    const grad = ctx.createLinearGradient(cx, player.y, cx, player.y + player.height);
+    grad.addColorStop(0, COLORS.PLAYER);
+    grad.addColorStop(1, COLORS.PLAYER_SHIELD);
+    ctx.fillStyle = grad;
+    ctx.fill();
+
+    ctx.strokeStyle = COLORS.PLAYER;
+    ctx.lineWidth = 1.5;
+    ctx.shadowColor = COLORS.PLAYER;
+    ctx.shadowBlur = 8;
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+
+    ctx.beginPath();
+    ctx.arc(cx, cy, Math.max(player.width, player.height) * 0.12, 0, Math.PI * 2);
+    ctx.fillStyle = '#d9fbff';
+    ctx.fill();
+}
 
 export class Player {
     constructor() {
@@ -92,43 +133,26 @@ export class Player {
 
         ctx.save();
 
-        if (isFlashing) {
-            ctx.globalAlpha = 0.4;
+        const drewSprite = drawPixelSprite(
+            ctx,
+            PLAYER_SPRITE,
+            this.x,
+            this.y,
+            this.width,
+            this.height,
+            {
+                glowColor: COLORS.PLAYER,
+                glowBlur: 10,
+                flashAlpha: isFlashing ? 0.72 : 0
+            }
+        );
+
+        if (!drewSprite) {
+            renderFallbackPlayer(ctx, this, isFlashing);
         }
 
         const cx = this.getCenterX();
         const cy = this.getCenterY();
-
-        // Main ship body - sci-fi triangle/polygon shape
-        ctx.beginPath();
-        // Nose
-        ctx.moveTo(cx, this.y);
-        // Right wing
-        ctx.lineTo(cx + this.width / 2, this.y + this.height * 0.8);
-        // Right inner
-        ctx.lineTo(cx + this.width * 0.15, this.y + this.height * 0.6);
-        // Tail center
-        ctx.lineTo(cx, this.y + this.height);
-        // Left inner
-        ctx.lineTo(cx - this.width * 0.15, this.y + this.height * 0.6);
-        // Left wing
-        ctx.lineTo(cx - this.width / 2, this.y + this.height * 0.8);
-        ctx.closePath();
-
-        // Ship gradient fill
-        const grad = ctx.createLinearGradient(cx, this.y, cx, this.y + this.height);
-        grad.addColorStop(0, COLORS.PLAYER);
-        grad.addColorStop(1, COLORS.PLAYER_SHIELD);
-        ctx.fillStyle = grad;
-        ctx.fill();
-
-        // Ship outline glow
-        ctx.strokeStyle = COLORS.PLAYER;
-        ctx.lineWidth = 1.5;
-        ctx.shadowColor = COLORS.PLAYER;
-        ctx.shadowBlur = 8;
-        ctx.stroke();
-        ctx.shadowBlur = 0;
 
         // Engine glow at tail
         ctx.beginPath();

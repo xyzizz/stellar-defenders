@@ -25,11 +25,11 @@ export const REWARD_POOL = {
         {
             id: 'fire_rate_up',
             name: '超频射击',
-            description: '攻速 +12%',
+            description: '攻速 +5%',
             icon: '🔥',
             maxStack: 6,
             apply(stats) {
-                stats.fireRateMultiplier = (stats.fireRateMultiplier || 1) * 0.88;
+                stats.fireRateMultiplier = (stats.fireRateMultiplier || 1) * 0.95;
             }
         },
         {
@@ -195,7 +195,7 @@ export const REWARD_POOL = {
             maxStack: 1,
             apply(stats) {
                 stats.damageMultiplier = (stats.damageMultiplier || 1) * 1.25;
-                stats.fireRateMultiplier = (stats.fireRateMultiplier || 1) * 0.8;
+                stats.fireRateMultiplier = (stats.fireRateMultiplier || 1) * 0.95;
                 stats.moveSpeed = (stats.moveSpeed || 320) * 1.25;
             }
         },

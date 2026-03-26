@@ -1,7 +1,185 @@
 // enemy.js - Enemy and Boss entities
 import { CANVAS_WIDTH, CANVAS_HEIGHT, COLORS, SCREEN } from '../config/constants.js';
 import { ENEMY_TYPES, ENEMY_CONFIG } from '../config/enemies.js';
-import { clamp, distance } from '../utils/helpers.js';
+import { clamp } from '../utils/helpers.js';
+
+const ENEMY_SPRITE_URLS = {
+    [ENEMY_TYPES.DRONE]: new URL('../../assets/enemies/drone-pixel-mech.svg', import.meta.url).href,
+    [ENEMY_TYPES.RUSHER]: new URL('../../assets/enemies/rusher-pixel-mech.svg', import.meta.url).href,
+    [ENEMY_TYPES.TANK]: new URL('../../assets/enemies/tank-pixel-mech.svg', import.meta.url).href,
+    [ENEMY_TYPES.BOMBER]: new URL('../../assets/enemies/bomber-pixel-mech.svg', import.meta.url).href,
+    [ENEMY_TYPES.BOSS]: new URL('../../assets/enemies/boss-pixel-mech.svg', import.meta.url).href
+};
+
+const ENEMY_SPRITES = Object.fromEntries(
+    Object.entries(ENEMY_SPRITE_URLS).map(([type, url]) => [type, createSprite(url)])
+);
+
+function createSprite(url) {
+    const image = new Image();
+    image.decoding = 'async';
+    image.src = url;
+    return image;
+}
+
+function getEnemySprite(type) {
+    return ENEMY_SPRITES[type] || null;
+}
+
+function drawEnemySprite(ctx, sprite, x, y, width, height, glowColor, flashAlpha = 0) {
+    if (!sprite || !sprite.complete || !sprite.naturalWidth) return false;
+
+    ctx.save();
+    ctx.imageSmoothingEnabled = false;
+    ctx.shadowColor = glowColor;
+    ctx.shadowBlur = 8;
+    ctx.drawImage(sprite, Math.round(x), Math.round(y), Math.round(width), Math.round(height));
+
+    if (flashAlpha > 0) {
+        ctx.globalCompositeOperation = 'source-atop';
+        ctx.fillStyle = `rgba(255, 255, 255, ${flashAlpha})`;
+        ctx.fillRect(Math.round(x), Math.round(y), Math.round(width), Math.round(height));
+        ctx.globalCompositeOperation = 'source-over';
+    }
+
+    ctx.restore();
+    return true;
+}
+
+function renderFallbackEnemy(ctx, enemy, drawColor) {
+    const cx = enemy.getCenterX();
+    const cy = enemy.getCenterY();
+    const hw = enemy.width / 2;
+    const hh = enemy.height / 2;
+
+    ctx.fillStyle = drawColor;
+    ctx.strokeStyle = enemy.color;
+    ctx.lineWidth = 1.5;
+    ctx.shadowColor = enemy.color;
+    ctx.shadowBlur = 6;
+
+    switch (enemy.type) {
+        case ENEMY_TYPES.DRONE:
+            ctx.beginPath();
+            ctx.moveTo(cx, cy - hh);
+            ctx.lineTo(cx + hw, cy);
+            ctx.lineTo(cx, cy + hh);
+            ctx.lineTo(cx - hw, cy);
+            ctx.closePath();
+            ctx.fill();
+            ctx.stroke();
+            break;
+
+        case ENEMY_TYPES.RUSHER:
+            ctx.beginPath();
+            ctx.moveTo(cx - hw, cy - hh);
+            ctx.lineTo(cx + hw, cy - hh);
+            ctx.lineTo(cx, cy + hh);
+            ctx.closePath();
+            ctx.fill();
+            ctx.stroke();
+            break;
+
+        case ENEMY_TYPES.TANK:
+            ctx.beginPath();
+            for (let i = 0; i < 6; i++) {
+                const a = (Math.PI / 3) * i - Math.PI / 6;
+                const px = cx + hw * Math.cos(a);
+                const py = cy + hh * Math.sin(a);
+                if (i === 0) ctx.moveTo(px, py);
+                else ctx.lineTo(px, py);
+            }
+            ctx.closePath();
+            ctx.fill();
+            ctx.stroke();
+
+            ctx.beginPath();
+            for (let i = 0; i < 6; i++) {
+                const a = (Math.PI / 3) * i - Math.PI / 6;
+                const px = cx + hw * 0.5 * Math.cos(a);
+                const py = cy + hh * 0.5 * Math.sin(a);
+                if (i === 0) ctx.moveTo(px, py);
+                else ctx.lineTo(px, py);
+            }
+            ctx.closePath();
+            ctx.strokeStyle = drawColor;
+            ctx.globalAlpha = 0.4;
+            ctx.stroke();
+            ctx.globalAlpha = 1;
+            break;
+
+        case ENEMY_TYPES.BOMBER:
+            ctx.beginPath();
+            ctx.arc(cx, cy, hw, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.beginPath();
+            ctx.arc(cx, cy, hw + 3 + Math.sin(Date.now() * 0.01) * 2, 0, Math.PI * 2);
+            ctx.strokeStyle = enemy.color;
+            ctx.globalAlpha = 0.3;
+            ctx.lineWidth = 2;
+            ctx.stroke();
+            ctx.globalAlpha = 1;
+            break;
+
+        default:
+            ctx.fillRect(enemy.x, enemy.y, enemy.width, enemy.height);
+            break;
+    }
+
+    ctx.shadowBlur = 0;
+}
+
+function renderFallbackBoss(ctx, boss, drawColor) {
+    const cx = boss.getCenterX();
+    const hw = boss.width / 2;
+    const hh = boss.height / 2;
+
+    ctx.beginPath();
+    ctx.moveTo(cx, boss.y);
+    ctx.lineTo(cx + hw * 0.4, boss.y + hh * 0.3);
+    ctx.lineTo(cx + hw, boss.y + hh * 0.6);
+    ctx.lineTo(cx + hw * 0.7, boss.y + boss.height);
+    ctx.lineTo(cx + hw * 0.15, boss.y + boss.height * 0.85);
+    ctx.lineTo(cx, boss.y + boss.height);
+    ctx.lineTo(cx - hw * 0.15, boss.y + boss.height * 0.85);
+    ctx.lineTo(cx - hw * 0.7, boss.y + boss.height);
+    ctx.lineTo(cx - hw, boss.y + hh * 0.6);
+    ctx.lineTo(cx - hw * 0.4, boss.y + hh * 0.3);
+    ctx.closePath();
+
+    const grad = ctx.createLinearGradient(cx, boss.y, cx, boss.y + boss.height);
+    grad.addColorStop(0, drawColor);
+    grad.addColorStop(1, '#440022');
+    ctx.fillStyle = grad;
+    ctx.shadowColor = boss.color;
+    ctx.shadowBlur = 12;
+    ctx.fill();
+
+    ctx.strokeStyle = boss.color;
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+
+    ctx.beginPath();
+    ctx.arc(cx, boss.getCenterY(), 10, 0, Math.PI * 2);
+    ctx.fillStyle = '#ff4488';
+    ctx.shadowColor = '#ff4488';
+    ctx.shadowBlur = 15;
+    ctx.fill();
+    ctx.shadowBlur = 0;
+}
+
+function getScaledHpBarHeight(totalElapsed, baseHeight, maxHeight) {
+    const progress = Math.max(0, Math.min(1, totalElapsed / 180));
+    return baseHeight + (maxHeight - baseHeight) * progress;
+}
+
+function getHpBarColor(hpRatio) {
+    if (hpRatio > 0.5) return '#00ff88';
+    if (hpRatio > 0.25) return '#ffaa00';
+    return '#ff4444';
+}
 
 export class Enemy {
     constructor(type, x, y, waveMultiplier = 1) {
@@ -96,101 +274,40 @@ export class Enemy {
         return this.y > CANVAS_HEIGHT + this.height;
     }
 
-    render(renderer) {
+    render(renderer, totalElapsed = 0) {
         const ctx = renderer.ctx || renderer;
         ctx.save();
-
-        const cx = this.getCenterX();
-        const cy = this.getCenterY();
-        const hw = this.width / 2;
-        const hh = this.height / 2;
-
-        // Hit flash: white overlay
         const drawColor = this.hitFlashTimer > 0 ? '#ffffff' : this.color;
+        const sprite = getEnemySprite(this.type);
+        const drewSprite = drawEnemySprite(
+            ctx,
+            sprite,
+            this.x,
+            this.y,
+            this.width,
+            this.height,
+            this.color,
+            this.hitFlashTimer > 0 ? 0.82 : 0
+        );
 
-        ctx.fillStyle = drawColor;
-        ctx.strokeStyle = this.color;
-        ctx.lineWidth = 1.5;
-        ctx.shadowColor = this.color;
-        ctx.shadowBlur = 6;
-
-        switch (this.type) {
-            case ENEMY_TYPES.DRONE:
-                // Diamond shape
-                ctx.beginPath();
-                ctx.moveTo(cx, cy - hh);
-                ctx.lineTo(cx + hw, cy);
-                ctx.lineTo(cx, cy + hh);
-                ctx.lineTo(cx - hw, cy);
-                ctx.closePath();
-                ctx.fill();
-                ctx.stroke();
-                break;
-
-            case ENEMY_TYPES.RUSHER:
-                // Downward-pointing triangle
-                ctx.beginPath();
-                ctx.moveTo(cx - hw, cy - hh);
-                ctx.lineTo(cx + hw, cy - hh);
-                ctx.lineTo(cx, cy + hh);
-                ctx.closePath();
-                ctx.fill();
-                ctx.stroke();
-                break;
-
-            case ENEMY_TYPES.TANK:
-                // Hexagon
-                ctx.beginPath();
-                for (let i = 0; i < 6; i++) {
-                    const a = (Math.PI / 3) * i - Math.PI / 6;
-                    const px = cx + hw * Math.cos(a);
-                    const py = cy + hh * Math.sin(a);
-                    if (i === 0) ctx.moveTo(px, py);
-                    else ctx.lineTo(px, py);
-                }
-                ctx.closePath();
-                ctx.fill();
-                ctx.stroke();
-
-                // Armor indicator (inner hex)
-                ctx.beginPath();
-                for (let i = 0; i < 6; i++) {
-                    const a = (Math.PI / 3) * i - Math.PI / 6;
-                    const px = cx + hw * 0.5 * Math.cos(a);
-                    const py = cy + hh * 0.5 * Math.sin(a);
-                    if (i === 0) ctx.moveTo(px, py);
-                    else ctx.lineTo(px, py);
-                }
-                ctx.closePath();
-                ctx.strokeStyle = drawColor;
-                ctx.globalAlpha = 0.4;
-                ctx.stroke();
-                ctx.globalAlpha = 1;
-                break;
-
-            case ENEMY_TYPES.BOMBER:
-                // Circle with glow
-                ctx.beginPath();
-                ctx.arc(cx, cy, hw, 0, Math.PI * 2);
-                ctx.fill();
-
-                // Pulsing glow ring
-                ctx.beginPath();
-                ctx.arc(cx, cy, hw + 3 + Math.sin(Date.now() * 0.01) * 2, 0, Math.PI * 2);
-                ctx.strokeStyle = this.color;
-                ctx.globalAlpha = 0.3;
-                ctx.lineWidth = 2;
-                ctx.stroke();
-                ctx.globalAlpha = 1;
-                break;
-
-            default:
-                // Fallback rectangle
-                ctx.fillRect(this.x, this.y, this.width, this.height);
-                break;
+        if (!drewSprite) {
+            renderFallbackEnemy(ctx, this, drawColor);
         }
 
-        ctx.shadowBlur = 0;
+        const hpRatio = this.hp / this.maxHp;
+        const barHeight = getScaledHpBarHeight(totalElapsed, 2.5, 6);
+        const barY = this.y - barHeight - 4;
+
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.65)';
+        ctx.fillRect(this.x, barY, this.width, barHeight);
+
+        ctx.fillStyle = getHpBarColor(hpRatio);
+        ctx.fillRect(this.x, barY, this.width * hpRatio, barHeight);
+
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.45)';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(this.x, barY, this.width, barHeight);
+
         ctx.restore();
     }
 }
@@ -352,60 +469,27 @@ export class Boss {
         return false; // Boss never goes offscreen on its own
     }
 
-    render(renderer) {
+    render(renderer, totalElapsed = 0) {
         const ctx = renderer.ctx || renderer;
         ctx.save();
 
         const cx = this.getCenterX();
-        const cy = this.getCenterY();
-        const hw = this.width / 2;
-        const hh = this.height / 2;
-
         const drawColor = this.hitFlashTimer > 0 ? '#ffffff' : this.color;
+        const sprite = getEnemySprite(this.type);
+        const drewSprite = drawEnemySprite(
+            ctx,
+            sprite,
+            this.x,
+            this.y,
+            this.width,
+            this.height,
+            this.color,
+            this.hitFlashTimer > 0 ? 0.78 : 0
+        );
 
-        // Boss ship body - large angular shape
-        ctx.beginPath();
-        // Top center
-        ctx.moveTo(cx, this.y);
-        // Top right shoulder
-        ctx.lineTo(cx + hw * 0.4, this.y + hh * 0.3);
-        // Right wing tip
-        ctx.lineTo(cx + hw, this.y + hh * 0.6);
-        // Right bottom
-        ctx.lineTo(cx + hw * 0.7, this.y + this.height);
-        // Bottom center indent
-        ctx.lineTo(cx + hw * 0.15, this.y + this.height * 0.85);
-        ctx.lineTo(cx, this.y + this.height);
-        ctx.lineTo(cx - hw * 0.15, this.y + this.height * 0.85);
-        // Left bottom
-        ctx.lineTo(cx - hw * 0.7, this.y + this.height);
-        // Left wing tip
-        ctx.lineTo(cx - hw, this.y + hh * 0.6);
-        // Top left shoulder
-        ctx.lineTo(cx - hw * 0.4, this.y + hh * 0.3);
-        ctx.closePath();
-
-        const grad = ctx.createLinearGradient(cx, this.y, cx, this.y + this.height);
-        grad.addColorStop(0, drawColor);
-        grad.addColorStop(1, '#440022');
-        ctx.fillStyle = grad;
-        ctx.shadowColor = this.color;
-        ctx.shadowBlur = 12;
-        ctx.fill();
-
-        ctx.strokeStyle = this.color;
-        ctx.lineWidth = 2;
-        ctx.stroke();
-        ctx.shadowBlur = 0;
-
-        // Core/cockpit glow
-        ctx.beginPath();
-        ctx.arc(cx, cy, 10, 0, Math.PI * 2);
-        ctx.fillStyle = '#ff4488';
-        ctx.shadowColor = '#ff4488';
-        ctx.shadowBlur = 15;
-        ctx.fill();
-        ctx.shadowBlur = 0;
+        if (!drewSprite) {
+            renderFallbackBoss(ctx, this, drawColor);
+        }
 
         // Laser beam rendering
         if (this.laserActive) {
@@ -424,7 +508,7 @@ export class Boss {
 
         // HP bar above boss
         const barWidth = this.width + 20;
-        const barHeight = 6;
+        const barHeight = getScaledHpBarHeight(totalElapsed, 6, 12);
         const barX = cx - barWidth / 2;
         const barY = this.y - 16;
         const hpRatio = this.hp / this.maxHp;
@@ -434,12 +518,7 @@ export class Boss {
         ctx.fillRect(barX, barY, barWidth, barHeight);
 
         // HP fill
-        let hpColor;
-        if (hpRatio > 0.5) hpColor = '#ff0066';
-        else if (hpRatio > 0.25) hpColor = '#ff4400';
-        else hpColor = '#ff0000';
-
-        ctx.fillStyle = hpColor;
+        ctx.fillStyle = getHpBarColor(hpRatio);
         ctx.fillRect(barX, barY, barWidth * hpRatio, barHeight);
 
         // Border

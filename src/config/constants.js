@@ -29,7 +29,7 @@ export const PLAYER = {
     HEIGHT: 40,
     SPEED: 360,
     MAX_HP: 120,
-    FIRE_RATE: 0.18,       // 更快的射击频率
+    FIRE_RATE: 0.42,
     INVINCIBLE_TIME: 0.6,
     Y_OFFSET: 50
 };
@@ -58,6 +58,7 @@ export const PARTICLE = {
 export const PICKUP = {
     SIZE: 14,
     SPEED: 150,
+    EXP_SPEED: 230,
     MAGNET_RANGE: 80,
     MAGNET_SPEED: 350
 };
@@ -77,10 +78,10 @@ export const CHEST = {
     // 宝箱本身
     BOX_WIDTH: 40,
     BOX_HEIGHT: 30,
-    BOX_HP: 8,               // 宝箱血量
-    // 砖块血量（较低，好打）
-    BRICK_HP_BASE: 2,
-    BRICK_HP_PER_TIER: 1,
+    BOX_HP: 10,              // 宝箱血量
+    // 砖块血量（提高，开箱更难）
+    BRICK_HP_BASE: 3,
+    BRICK_HP_PER_TIER: 2,
     // 品质（从上到下）
     TIERS: ['COMMON', 'RARE', 'EPIC', 'LEGENDARY']
 };
@@ -88,7 +89,7 @@ export const CHEST = {
 // 经验（击杀被动成长）
 export const LEVEL = {
     BASE_EXP: 20,
-    EXP_GROWTH: 1.25,
+    EXP_GROWTH: 1.32,
     MAX_LEVEL: 20
 };
 

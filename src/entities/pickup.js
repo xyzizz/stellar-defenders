@@ -1,4 +1,4 @@
-// pickup.js - Experience orb pickup
+// pickup.js - Pickups for experience or chest rewards
 import { CANVAS_WIDTH, CANVAS_HEIGHT, PICKUP, COLORS } from '../config/constants.js';
 import { distance } from '../utils/helpers.js';
 
@@ -29,8 +29,9 @@ export class Pickup {
             this.x += (dx / len) * speed * dt;
             this.y += (dy / len) * speed * dt;
         } else {
-            // Drift downward
-            this.y += PICKUP.SPEED * dt;
+            // Experience orbs fall faster than chest rewards.
+            const fallSpeed = this.pickupType === 'reward' ? PICKUP.SPEED : PICKUP.EXP_SPEED;
+            this.y += fallSpeed * dt;
         }
     }
 

@@ -1,4 +1,4 @@
-// enemies.js - 敌人配置（降低难度版）
+// enemies.js - 敌人配置（提高压力版）
 export const ENEMY_TYPES = {
     DRONE: 'DRONE',
     RUSHER: 'RUSHER',
@@ -63,7 +63,7 @@ export const ENEMY_CONFIG = {
         name: '歼灭母舰',
         width: 100,
         height: 70,
-        hp: 500,           // 降低
+        hp: 620,
         speed: 50,
         damage: 20,
         exp: 0,
@@ -84,7 +84,7 @@ export const ENEMY_CONFIG = {
             {
                 name: '阶段二：狂暴',
                 hpThreshold: 0,
-                attackInterval: 1.0,
+                attackInterval: 0.9,
                 bulletCount: 5,
                 bulletSpeed: 220,
                 summonInterval: 4,

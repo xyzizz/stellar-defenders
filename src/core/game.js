@@ -44,6 +44,7 @@ export class Game {
         this.pickups = [];
         this.boss = null;
         this.wall = null;
+        this.combatEffects = [];
 
         // Stats
         this.score = 0;
@@ -131,6 +132,7 @@ export class Game {
         this.pickups = [];
         this.boss = null;
         this.wall = new WallSystem();
+        this.combatEffects = [];
         this.score = 0;
         this.kills = 0;
         this.level = 1;
@@ -204,6 +206,7 @@ export class Game {
             case GAME_STATES.VICTORY:
             case GAME_STATES.DEFEAT:
                 this.particles.update(dt);
+                this._updateCombatEffects(dt);
                 this.rewardPopup.update(dt);
                 break;
         }
@@ -249,6 +252,7 @@ export class Game {
 
         // Particles, HUD, reward popup
         this.particles.update(dt);
+        this._updateCombatEffects(dt);
         this.hud.update(dt);
         this.rewardPopup.update(dt);
 
@@ -264,6 +268,7 @@ export class Game {
         this.bossWarningTimer -= dt;
         this.hud.update(dt);
         this.particles.update(dt);
+        this._updateCombatEffects(dt);
         this.rewardPopup.update(dt);
 
         this._movePlayer(dt);
@@ -423,7 +428,7 @@ export class Game {
 
         // 激光只打右侧的敌人
         for (const enemy of this.enemies) {
-            if (!enemy.alive) continue;
+            if (!this._isEnemyTargetable(enemy)) continue;
             const ecx = enemy.getCenterX();
             if (Math.abs(ecx - cx) < laserWidth + enemy.width / 2) {
                 const killed = enemy.takeDamage(laserDmg);
@@ -471,10 +476,19 @@ export class Game {
 
         let currentTarget = target;
         const hitTargets = new Set();
+        let sourceX = this.player.getCenterX();
+        let sourceY = this.player.y + 4;
 
         for (let i = 0; i < chainCount && currentTarget; i++) {
             if (!currentTarget.alive) break;
             hitTargets.add(currentTarget);
+            this._addArcEffect(
+                sourceX,
+                sourceY,
+                currentTarget.getCenterX(),
+                currentTarget.getCenterY(),
+                SPECIAL_WEAPONS.arc.color
+            );
             const killed = currentTarget.takeDamage(damage);
             this.hud.addDamageNumber(currentTarget.getCenterX(), currentTarget.getCenterY(), damage, false);
             this.particles.emit(currentTarget.getCenterX(), currentTarget.getCenterY(), 3, {
@@ -484,6 +498,8 @@ export class Game {
 
             const px = currentTarget.getCenterX();
             const py = currentTarget.getCenterY();
+            sourceX = px;
+            sourceY = py;
             currentTarget = this._findClosestEnemyTo(px, py, chainRange, hitTargets);
         }
     }
@@ -492,7 +508,7 @@ export class Game {
         let closest = null, closestDist = Infinity;
         const px = this.player.getCenterX(), py = this.player.getCenterY();
         for (const enemy of this.enemies) {
-            if (!enemy.alive) continue;
+            if (!this._isEnemyTargetable(enemy)) continue;
             const d = distance(px, py, enemy.getCenterX(), enemy.getCenterY());
             if (d < closestDist) { closestDist = d; closest = enemy; }
         }
@@ -502,11 +518,17 @@ export class Game {
     _findClosestEnemyTo(x, y, range, exclude = new Set()) {
         let closest = null, closestDist = range;
         for (const enemy of this.enemies) {
-            if (!enemy.alive || exclude.has(enemy)) continue;
+            if (!this._isEnemyTargetable(enemy) || exclude.has(enemy)) continue;
             const d = distance(x, y, enemy.getCenterX(), enemy.getCenterY());
             if (d < closestDist) { closestDist = d; closest = enemy; }
         }
         return closest;
+    }
+
+    _isEnemyTargetable(enemy) {
+        if (!enemy || !enemy.alive) return false;
+        // Ignore enemies that have spawned but have not yet entered the visible playfield.
+        return enemy.y + enemy.height > 0 && enemy.y < CANVAS_HEIGHT;
     }
 
     // ---- Spawning (right side only) ----
@@ -526,7 +548,7 @@ export class Game {
         const toSpawn = Math.min(count, waveConfig.maxAlive - aliveCount);
 
         const waveIndex = this.waveManager.getProgress().currentWave;
-        const hpMultiplier = 1 + (waveIndex - 1) * 0.15;
+        const hpMultiplier = 1 + (waveIndex - 1) * 0.20;
 
         const rightWidth = SCREEN.RIGHT_MAX - SCREEN.RIGHT_MIN;
         for (let i = 0; i < toSpawn; i++) {
@@ -652,7 +674,7 @@ export class Game {
 
             // 子弹打敌人
             for (const enemy of this.enemies) {
-                if (!enemy.alive) continue;
+                if (!this._isEnemyTargetable(enemy)) continue;
                 if (rectCollide(bullet, enemy)) {
                     const killed = enemy.takeDamage(bullet.damage);
                     bullet.onHit();
@@ -725,11 +747,19 @@ export class Game {
 
     _explode(x, y, radius, damage) {
         this.particles.emitExplosion(x, y);
+        this._addExplosionEffect(x, y, radius, '#ffaa00');
         this.renderer.shake(6);
         for (const enemy of this.enemies) {
-            if (!enemy.alive) continue;
+            if (!this._isEnemyTargetable(enemy)) continue;
             if (distance(x, y, enemy.getCenterX(), enemy.getCenterY()) < radius) {
                 const killed = enemy.takeDamage(damage);
+                this.hud.addDamageNumber(
+                    enemy.getCenterX() + randFloat(-8, 8),
+                    enemy.getCenterY() - 6,
+                    damage,
+                    false
+                );
+                this.particles.emitHit(enemy.getCenterX(), enemy.getCenterY(), '#ffaa00');
                 if (killed) this._onEnemyKilled(enemy);
             }
         }
@@ -845,8 +875,113 @@ export class Game {
             this.exp -= this.expToNext;
             this.level++;
             this.expToNext = Math.floor(LEVEL.BASE_EXP * Math.pow(LEVEL.EXP_GROWTH, this.level - 1));
-            // 被动成长：每级+5%伤害
-            this.player.stats.damageMultiplier = (this.player.stats.damageMultiplier || 1) + 0.05;
+            // 被动成长：每级+4%伤害
+            this.player.stats.damageMultiplier = (this.player.stats.damageMultiplier || 1) + 0.04;
+        }
+    }
+
+    _updateCombatEffects(dt) {
+        for (let i = this.combatEffects.length - 1; i >= 0; i--) {
+            const effect = this.combatEffects[i];
+            effect.life -= dt;
+            if (effect.life <= 0) {
+                this.combatEffects.splice(i, 1);
+            }
+        }
+    }
+
+    _pushCombatEffect(effect) {
+        if (this.combatEffects.length >= 48) {
+            this.combatEffects.shift();
+        }
+        this.combatEffects.push(effect);
+    }
+
+    _addArcEffect(x1, y1, x2, y2, color) {
+        this._pushCombatEffect({
+            type: 'arc',
+            x1,
+            y1,
+            x2,
+            y2,
+            color,
+            life: 0.14,
+            maxLife: 0.14,
+            jitter: randFloat(-16, 16)
+        });
+    }
+
+    _addExplosionEffect(x, y, radius, color) {
+        this._pushCombatEffect({
+            type: 'ring',
+            x,
+            y,
+            color,
+            maxRadius: radius,
+            life: 0.22,
+            maxLife: 0.22
+        });
+    }
+
+    _renderCombatEffects() {
+        const ctx = this.ctx;
+
+        for (const effect of this.combatEffects) {
+            const lifeRatio = Math.max(0, effect.life / effect.maxLife);
+
+            if (effect.type === 'arc') {
+                const dx = effect.x2 - effect.x1;
+                const dy = effect.y2 - effect.y1;
+                const len = Math.hypot(dx, dy) || 1;
+                const nx = -dy / len;
+                const ny = dx / len;
+                const kink = effect.jitter * (0.35 + 0.65 * lifeRatio);
+                const midX = (effect.x1 + effect.x2) / 2 + nx * kink;
+                const midY = (effect.y1 + effect.y2) / 2 + ny * kink;
+
+                ctx.save();
+                ctx.globalAlpha = 0.8 * lifeRatio;
+                ctx.strokeStyle = effect.color;
+                ctx.lineWidth = 2 + lifeRatio * 2;
+                ctx.shadowColor = effect.color;
+                ctx.shadowBlur = 10;
+                ctx.beginPath();
+                ctx.moveTo(effect.x1, effect.y1);
+                ctx.lineTo(midX, midY);
+                ctx.lineTo(effect.x2, effect.y2);
+                ctx.stroke();
+
+                ctx.globalAlpha = 0.9 * lifeRatio;
+                ctx.strokeStyle = '#ffffff';
+                ctx.lineWidth = 1.2;
+                ctx.shadowBlur = 0;
+                ctx.beginPath();
+                ctx.moveTo(effect.x1, effect.y1);
+                ctx.lineTo(midX, midY);
+                ctx.lineTo(effect.x2, effect.y2);
+                ctx.stroke();
+                ctx.restore();
+            } else if (effect.type === 'ring') {
+                const progress = 1 - lifeRatio;
+                const radius = 10 + effect.maxRadius * progress;
+
+                ctx.save();
+                ctx.globalAlpha = 0.3 * lifeRatio;
+                ctx.fillStyle = effect.color;
+                ctx.beginPath();
+                ctx.arc(effect.x, effect.y, radius * 0.45, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.globalAlpha = 0.65 * lifeRatio;
+                ctx.strokeStyle = effect.color;
+                ctx.lineWidth = 2.5 - progress;
+                ctx.shadowColor = effect.color;
+                ctx.shadowBlur = 12;
+                ctx.beginPath();
+                ctx.arc(effect.x, effect.y, radius, 0, Math.PI * 2);
+                ctx.stroke();
+                ctx.restore();
+            }
         }
     }
 
@@ -884,6 +1019,7 @@ export class Game {
     _renderGame() {
         const r = this.renderer;
         const ctx = this.ctx;
+        const progress = this.waveManager.getProgress();
 
         // 左侧：砖墙区
         this.wall.render(r);
@@ -925,7 +1061,7 @@ export class Game {
 
         // Enemies
         for (const enemy of this.enemies) {
-            if (enemy.alive) enemy.render(r);
+            if (enemy.alive) enemy.render(r, progress.totalTime);
         }
 
         // Player
@@ -939,12 +1075,14 @@ export class Game {
         // Boss bullets
         for (const bb of this.bossBullets) bb.render(r);
 
+        // Combat effect overlays
+        this._renderCombatEffects();
+
         // Particles
         this.particles.render(r);
 
         // HUD
         if (this.player) {
-            const progress = this.waveManager.getProgress();
             const wallProgress = this.wall.getProgress();
             this.hud.render({
                 currentWave: progress.currentWave,

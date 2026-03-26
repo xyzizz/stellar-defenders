@@ -1,4 +1,4 @@
-// waves.js - 波次配置（降低压力版）
+// waves.js - 波次配置（加强压力版）
 import { ENEMY_TYPES } from './enemies.js';
 
 export const WAVE_CONFIG = [
@@ -9,8 +9,8 @@ export const WAVE_CONFIG = [
         spawnGroups: [
             { type: ENEMY_TYPES.DRONE, weight: 10, minCount: 1, maxCount: 1 }
         ],
-        spawnInterval: 1.8,    // 刷怪更慢
-        maxAlive: 5,           // 同屏更少
+        spawnInterval: 1.6,
+        maxAlive: 6,
         message: '敌方侦察单位接近！'
     },
     {
@@ -21,8 +21,8 @@ export const WAVE_CONFIG = [
             { type: ENEMY_TYPES.DRONE, weight: 6, minCount: 1, maxCount: 2 },
             { type: ENEMY_TYPES.RUSHER, weight: 4, minCount: 1, maxCount: 1 }
         ],
-        spawnInterval: 1.4,
-        maxAlive: 8,
+        spawnInterval: 1.2,
+        maxAlive: 9,
         message: '快速单位出现！'
     },
     {
@@ -34,8 +34,8 @@ export const WAVE_CONFIG = [
             { type: ENEMY_TYPES.RUSHER, weight: 3, minCount: 1, maxCount: 1 },
             { type: ENEMY_TYPES.TANK, weight: 3, minCount: 1, maxCount: 1 }
         ],
-        spawnInterval: 1.2,
-        maxAlive: 10,
+        spawnInterval: 1.0,
+        maxAlive: 12,
         message: '重装机甲来袭！'
     },
     {
@@ -48,8 +48,8 @@ export const WAVE_CONFIG = [
             { type: ENEMY_TYPES.TANK, weight: 2, minCount: 1, maxCount: 1 },
             { type: ENEMY_TYPES.BOMBER, weight: 2, minCount: 1, maxCount: 1 }
         ],
-        spawnInterval: 1.0,
-        maxAlive: 12,
+        spawnInterval: 0.88,
+        maxAlive: 14,
         message: '警告：自爆单位！'
     },
     {
@@ -62,8 +62,8 @@ export const WAVE_CONFIG = [
             { type: ENEMY_TYPES.TANK, weight: 2, minCount: 1, maxCount: 1 },
             { type: ENEMY_TYPES.BOMBER, weight: 3, minCount: 1, maxCount: 1 }
         ],
-        spawnInterval: 0.8,
-        maxAlive: 15,
+        spawnInterval: 0.68,
+        maxAlive: 17,
         message: '最终波次！坚持住！'
     }
 ];

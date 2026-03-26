@@ -1,7 +1,11 @@
 // bullet.js - Bullet entities (player bullets, boss bullets)
 import { CANVAS_WIDTH, CANVAS_HEIGHT, BULLET, COLORS } from '../config/constants.js';
 import { WEAPON_CONFIG, SPECIAL_WEAPONS } from '../config/weapons.js';
-import { degToRad } from '../utils/helpers.js';
+import { drawPixelSprite, loadSprite } from '../utils/sprites.js';
+
+const BOSS_BULLET_SPRITE = loadSprite(
+    new URL('../../assets/effects/boss-bullet-pixel.svg', import.meta.url).href
+);
 
 export class Bullet {
     constructor({
@@ -179,26 +183,40 @@ export class BossBullet {
         const ctx = renderer.ctx || renderer;
         ctx.save();
 
-        const cx = this.x + this.width / 2;
-        const cy = this.y + this.height / 2;
-        const r = this.width / 2;
+        const spritePad = 3;
+        const drewSprite = drawPixelSprite(
+            ctx,
+            BOSS_BULLET_SPRITE,
+            this.x - spritePad,
+            this.y - spritePad,
+            this.width + spritePad * 2,
+            this.height + spritePad * 2,
+            {
+                glowColor: this.color,
+                glowBlur: 12
+            }
+        );
 
-        // Outer glow
-        ctx.beginPath();
-        ctx.arc(cx, cy, r + 2, 0, Math.PI * 2);
-        ctx.fillStyle = this.color;
-        ctx.shadowColor = this.color;
-        ctx.shadowBlur = 10;
-        ctx.globalAlpha = 0.4;
-        ctx.fill();
+        if (!drewSprite) {
+            const cx = this.x + this.width / 2;
+            const cy = this.y + this.height / 2;
+            const r = this.width / 2;
 
-        // Inner core
-        ctx.globalAlpha = 1;
-        ctx.beginPath();
-        ctx.arc(cx, cy, r, 0, Math.PI * 2);
-        ctx.fillStyle = '#ffffff';
-        ctx.fill();
-        ctx.shadowBlur = 0;
+            ctx.beginPath();
+            ctx.arc(cx, cy, r + 2, 0, Math.PI * 2);
+            ctx.fillStyle = this.color;
+            ctx.shadowColor = this.color;
+            ctx.shadowBlur = 10;
+            ctx.globalAlpha = 0.4;
+            ctx.fill();
+
+            ctx.globalAlpha = 1;
+            ctx.beginPath();
+            ctx.arc(cx, cy, r, 0, Math.PI * 2);
+            ctx.fillStyle = '#ffffff';
+            ctx.fill();
+            ctx.shadowBlur = 0;
+        }
 
         ctx.restore();
     }

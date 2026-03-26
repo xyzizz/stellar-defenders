@@ -1,6 +1,111 @@
 // wall.js - 宝箱模块系统（左侧区域）
 import { CHEST, SCREEN, COLORS, CANVAS_HEIGHT } from '../config/constants.js';
 import { REWARD_RARITY } from '../config/upgrades.js';
+import { loadSprite, drawPixelSprite } from '../utils/sprites.js';
+
+const CHEST_SPRITES = {
+    COMMON: loadSprite(new URL('../../assets/chests/chest-common-pixel.svg', import.meta.url).href),
+    RARE: loadSprite(new URL('../../assets/chests/chest-rare-pixel.svg', import.meta.url).href),
+    EPIC: loadSprite(new URL('../../assets/chests/chest-epic-pixel.svg', import.meta.url).href),
+    LEGENDARY: loadSprite(new URL('../../assets/chests/chest-legendary-pixel.svg', import.meta.url).href)
+};
+
+function getChestSprite(tier) {
+    return CHEST_SPRITES[tier] || null;
+}
+
+function drawPixelLock(ctx, cx, cy, color = '#d7dee5') {
+    ctx.save();
+    ctx.fillStyle = color;
+    ctx.globalAlpha = 0.9;
+    ctx.fillRect(Math.round(cx - 4), Math.round(cy - 1), 8, 6);
+    ctx.fillRect(Math.round(cx - 2), Math.round(cy - 5), 4, 4);
+    ctx.clearRect(Math.round(cx - 1), Math.round(cy - 3), 2, 2);
+    ctx.restore();
+}
+
+function renderFallbackChest(chest, renderer, tierColor, hpRatio) {
+    const ctx = renderer.ctx;
+    const cx = chest.x + chest.width / 2;
+    const cy = chest.y + chest.height / 2;
+
+    if (chest.hitFlashTimer > 0) {
+        ctx.fillStyle = '#ffffff';
+        ctx.globalAlpha = 0.9;
+        ctx.fillRect(chest.x, chest.y, chest.width, chest.height);
+        return;
+    }
+
+    if (chest.exposed) {
+        const pulse = 0.4 + 0.4 * Math.sin(chest.glowPhase);
+        ctx.shadowColor = tierColor;
+        ctx.shadowBlur = 10 + pulse * 8;
+        ctx.globalAlpha = 0.15 + pulse * 0.15;
+        ctx.fillStyle = tierColor;
+        ctx.fillRect(chest.x - 4, chest.y - 4, chest.width + 8, chest.height + 8);
+    }
+
+    ctx.globalAlpha = 0.8;
+    ctx.fillStyle = '#1a1a2e';
+    ctx.fillRect(chest.x, chest.y, chest.width, chest.height);
+
+    ctx.fillStyle = tierColor;
+    ctx.globalAlpha = 0.5 + hpRatio * 0.3;
+    const lidHeight = chest.height * 0.35;
+    ctx.fillRect(chest.x, chest.y, chest.width, lidHeight);
+
+    ctx.fillStyle = tierColor;
+    ctx.globalAlpha = 0.3 + hpRatio * 0.2;
+    ctx.fillRect(chest.x, chest.y + lidHeight, chest.width, chest.height - lidHeight);
+
+    ctx.strokeStyle = tierColor;
+    ctx.lineWidth = 2;
+    ctx.globalAlpha = 0.9;
+    ctx.strokeRect(chest.x + 0.5, chest.y + 0.5, chest.width - 1, chest.height - 1);
+
+    ctx.beginPath();
+    ctx.moveTo(chest.x, chest.y + lidHeight);
+    ctx.lineTo(chest.x + chest.width, chest.y + lidHeight);
+    ctx.globalAlpha = 0.7;
+    ctx.stroke();
+
+    ctx.shadowBlur = 0;
+    const iconPulse = chest.exposed ? 0.7 + 0.3 * Math.sin(chest.glowPhase * 1.5) : 0.6;
+    ctx.globalAlpha = iconPulse;
+    ctx.fillStyle = chest.exposed ? '#ffffff' : tierColor;
+    ctx.font = chest.exposed ? 'bold 16px monospace' : '14px monospace';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('★', cx, cy + 2);
+
+    ctx.globalAlpha = 0.5;
+    ctx.fillStyle = tierColor;
+    ctx.font = '8px monospace';
+    const rarityInfo = REWARD_RARITY[chest.tier];
+    ctx.fillText(rarityInfo ? rarityInfo.name : chest.tier, cx, chest.y + chest.height + 9);
+
+    if (chest.exposed && hpRatio < 1) {
+        ctx.globalAlpha = 0.7;
+        const barW = chest.width - 4;
+        const barH = 3;
+        const barX = chest.x + 2;
+        const barY = chest.y - 6;
+        ctx.fillStyle = '#000000';
+        ctx.fillRect(barX, barY, barW, barH);
+        ctx.fillStyle = hpRatio > 0.5 ? '#00ff88' : hpRatio > 0.25 ? '#ffaa00' : '#ff4444';
+        ctx.fillRect(barX, barY, barW * hpRatio, barH);
+    }
+
+    if (!chest.exposed) {
+        ctx.globalAlpha = 0.25;
+        ctx.fillStyle = '#000000';
+        ctx.fillRect(chest.x, chest.y, chest.width, chest.height);
+        ctx.globalAlpha = 0.5;
+        ctx.fillStyle = '#888888';
+        ctx.font = '10px monospace';
+        ctx.fillText('🔒', cx, chest.y - 4);
+    }
+}
 
 // ---------- Brick ----------
 class Brick {
@@ -131,78 +236,41 @@ class TreasureChest {
         ctx.save();
 
         const cx = this.x + this.width / 2;
-        const cy = this.y + this.height / 2;
         const tierColor = this._getTierColor();
         const hpRatio = this.hp / this.maxHp;
+        const sprite = getChestSprite(this.tier);
+        const glowBlur = this.exposed ? 12 + (0.4 + 0.4 * Math.sin(this.glowPhase)) * 8 : 0;
+        const drewSprite = drawPixelSprite(ctx, sprite, this.x, this.y, this.width, this.height, {
+            glowColor: this.exposed ? tierColor : null,
+            glowBlur,
+            flashAlpha: this.hitFlashTimer > 0 ? 0.82 : 0
+        });
 
-        if (this.hitFlashTimer > 0) {
-            // Flash white on hit
-            ctx.fillStyle = '#ffffff';
-            ctx.globalAlpha = 0.9;
-            ctx.fillRect(this.x, this.y, this.width, this.height);
+        if (!drewSprite) {
+            renderFallbackChest(this, renderer, tierColor, hpRatio);
             ctx.restore();
             return;
         }
 
-        // Glow effect when exposed
-        if (this.exposed) {
-            const pulse = 0.4 + 0.4 * Math.sin(this.glowPhase);
-            ctx.shadowColor = tierColor;
-            ctx.shadowBlur = 10 + pulse * 8;
-
-            // Pulsing outer glow
-            ctx.globalAlpha = 0.15 + pulse * 0.15;
-            ctx.fillStyle = tierColor;
-            ctx.fillRect(this.x - 4, this.y - 4, this.width + 8, this.height + 8);
+        if (!this.exposed) {
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.32)';
+            ctx.fillRect(this.x, this.y, this.width, this.height);
+            drawPixelLock(ctx, cx, this.y + this.height / 2 + 1, '#d2dae2');
+        } else if (this.hitFlashTimer <= 0) {
+            ctx.strokeStyle = tierColor;
+            ctx.lineWidth = 1;
+            ctx.globalAlpha = 0.65;
+            ctx.strokeRect(this.x + 0.5, this.y + 0.5, this.width - 1, this.height - 1);
         }
 
-        // Chest body - dark fill
-        ctx.globalAlpha = 0.8;
-        ctx.fillStyle = '#1a1a2e';
-        ctx.fillRect(this.x, this.y, this.width, this.height);
-
-        // Chest lid (top portion)
-        ctx.fillStyle = tierColor;
-        ctx.globalAlpha = 0.5 + hpRatio * 0.3;
-        const lidHeight = this.height * 0.35;
-        ctx.fillRect(this.x, this.y, this.width, lidHeight);
-
-        // Chest body darker band
-        ctx.fillStyle = tierColor;
-        ctx.globalAlpha = 0.3 + hpRatio * 0.2;
-        ctx.fillRect(this.x, this.y + lidHeight, this.width, this.height - lidHeight);
-
-        // Border
-        ctx.strokeStyle = tierColor;
-        ctx.lineWidth = 2;
-        ctx.globalAlpha = 0.9;
-        ctx.strokeRect(this.x + 0.5, this.y + 0.5, this.width - 1, this.height - 1);
-
-        // Lid line
-        ctx.beginPath();
-        ctx.moveTo(this.x, this.y + lidHeight);
-        ctx.lineTo(this.x + this.width, this.y + lidHeight);
-        ctx.globalAlpha = 0.7;
-        ctx.stroke();
-
-        // Lock / star icon
-        ctx.shadowBlur = 0;
-        const iconPulse = this.exposed ? 0.7 + 0.3 * Math.sin(this.glowPhase * 1.5) : 0.6;
-        ctx.globalAlpha = iconPulse;
-        ctx.fillStyle = this.exposed ? '#ffffff' : tierColor;
-        ctx.font = this.exposed ? 'bold 16px monospace' : '14px monospace';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText('★', cx, cy + 2);
-
-        // Tier label below chest
         ctx.globalAlpha = 0.5;
         ctx.fillStyle = tierColor;
         ctx.font = '8px monospace';
         const rarityInfo = REWARD_RARITY[this.tier];
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
         ctx.fillText(rarityInfo ? rarityInfo.name : this.tier, cx, this.y + this.height + 9);
 
-        // HP bar
         if (this.exposed && hpRatio < 1) {
             ctx.globalAlpha = 0.7;
             const barW = this.width - 4;
@@ -213,19 +281,6 @@ class TreasureChest {
             ctx.fillRect(barX, barY, barW, barH);
             ctx.fillStyle = hpRatio > 0.5 ? '#00ff88' : hpRatio > 0.25 ? '#ffaa00' : '#ff4444';
             ctx.fillRect(barX, barY, barW * hpRatio, barH);
-        }
-
-        // Locked overlay when not exposed
-        if (!this.exposed) {
-            ctx.globalAlpha = 0.25;
-            ctx.fillStyle = '#000000';
-            ctx.fillRect(this.x, this.y, this.width, this.height);
-
-            // Lock icon
-            ctx.globalAlpha = 0.5;
-            ctx.fillStyle = '#888888';
-            ctx.font = '10px monospace';
-            ctx.fillText('🔒', cx, this.y - 4);
         }
 
         ctx.restore();
@@ -292,26 +347,10 @@ class ChestModule {
         );
     }
 
-    // 检查宝箱下方是否有砖块阻挡（子弹从下往上飞）
-    // 只要宝箱正下方没有活着的砖块，宝箱就暴露
+    // Only expose the chest after the whole outer shell has been broken.
     updateExposed() {
         if (this.chest.opened) return;
-        const chest = this.chest;
-        const chestLeft = chest.x;
-        const chestRight = chest.x + chest.width;
-        const chestBottom = chest.y + chest.height;
-
-        // 检查是否有砖块在宝箱正下方（水平重叠 + 在宝箱下面）
-        const blocked = this.bricks.some(b => {
-            if (!b.alive) return false;
-            if (b.y < chestBottom) return false; // 不在宝箱下方
-            const brickLeft = b.x;
-            const brickRight = b.x + b.width;
-            // 水平方向有重叠
-            return brickRight > chestLeft && brickLeft < chestRight;
-        });
-
-        this.chest.exposed = !blocked;
+        this.chest.exposed = this.bricks.every((brick) => !brick.alive);
     }
 
     update(dt) {
